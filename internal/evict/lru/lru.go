@@ -19,15 +19,6 @@ type Cache struct {
 	OnEvicted func(key string, value Value)
 }
 
-type entry struct {
-	key   string
-	value Value
-}
-
-type Value interface {
-	Len() int64
-}
-
 func New(maxBytes int64, onEvicted func(string, Value)) *Cache {
 	return &Cache{
 		maxBytes:  maxBytes,
@@ -40,7 +31,7 @@ func New(maxBytes int64, onEvicted func(string, Value)) *Cache {
 func (c *Cache) Get(key string) (value Value, err error) {
 	if ele, ok := c.hashMap[key]; ok {
 		c.ll.MoveToFront(ele)
-		kv := ele.Value.(*entry)
+		kv := ele.Value.(*Entry)
 		return kv.value, nil
 	}
 	return nil, fmt.Errorf("not found")
@@ -49,11 +40,11 @@ func (c *Cache) Get(key string) (value Value, err error) {
 func (c *Cache) Add(key string, value Value) {
 	if ele, ok := c.hashMap[key]; ok {
 		c.ll.MoveToFront(ele)
-		kv := ele.Value.(*entry)
+		kv := ele.Value.(*Entry)
 		c.nBytes += value.Len() - kv.value.Len()
 		kv.value = value
 	} else {
-		ele := c.ll.PushFront(&entry{key, value})
+		ele := c.ll.PushFront(&Entry{key, value})
 		c.hashMap[key] = ele
 		c.nBytes += int64(len(key)) + value.Len()
 	}
@@ -65,7 +56,7 @@ func (c *Cache) Add(key string, value Value) {
 func (c *Cache) RemoveOldest() {
 	ele := c.ll.Back()
 	if ele != nil {
-		kv := ele.Value.(*entry)
+		kv := ele.Value.(*Entry)
 		c.nBytes -= int64(len(kv.key)) + kv.value.Len()
 		c.ll.Remove(ele)
 		delete(c.hashMap, kv.key)
